@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "cleanlife-mobile",
+    "slug": "cleanlife-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+   
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+
