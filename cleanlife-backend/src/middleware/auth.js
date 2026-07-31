@@ -1,4 +1,5 @@
 const { verifyToken } = require('../utils/jwt');
+const config = require('../config/env');
 
 // Protects collector-facing routes. Expects "Authorization: Bearer <token>".
 function requireAuth(req, res, next) {
@@ -11,6 +12,7 @@ function requireAuth(req, res, next) {
 
     try {
         req.collector = verifyToken(token);
+        req.user = req.collector;
         return next();
     } catch (err) {
         return res.status(401).json({ error: 'invalid or expired token' });
@@ -24,7 +26,7 @@ function requireAuth(req, res, next) {
 // for a production-grade admin auth system.
 function requireAdminKey(req, res, next) {
     const key = req.headers['x-admin-key'];
-    if (!key || key !== process.env.ADMIN_API_KEY) {
+    if (!key || key !== config.adminApiKey) {
         return res.status(401).json({ error: 'invalid admin key' });
     }
     return next();

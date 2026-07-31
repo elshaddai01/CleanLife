@@ -10,7 +10,7 @@ ALTER TABLE proof_of_works
     ADD COLUMN dumpster_id INTEGER NULL REFERENCES dumpsters(id);
 
 -- [POW-02] Insert the proof-of-work record. GPS-vs-bin-code matching and
--- the 100m ST_DWithin check happen in the app layer (dumpsters have no RLS,
+-- the 100m distance check happens in the app layer (dumpsters have no RLS,
 -- so that's a plain read); this function does the actual write, scoped by
 -- "am I the assigned collector" — same reasoning as migration 010's
 -- payment functions.

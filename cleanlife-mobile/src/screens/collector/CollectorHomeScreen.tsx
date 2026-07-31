@@ -1,21 +1,25 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
-import { walletApi, ApiError, clearSession } from '../../apiClient';
+import { walletApi, pickupApi, ApiError, clearSession } from '../../apiClient';
 
 type Props = {
   onViewJobs: () => void;
   onOpenWallet: () => void;
   onLogout: () => void;
+  onOpenProfile: () => void;
+  onResumeJob: (requestId: number) => void;
 };
 
-export default function CollectorHomeScreen({ onViewJobs, onOpenWallet, onLogout }: Props) {
+export default function CollectorHomeScreen({ onViewJobs, onOpenWallet, onLogout, onOpenProfile, onResumeJob }: Props) {
   const [balance, setBalance] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeJobId, setActiveJobId] = useState<number | null>(null);
 
   const loadBalance = useCallback(async () => {
     try {
-      const result = await walletApi.getBalance();
-      setBalance(result.balance);
+      const [balanceResult, activeJobs] = await Promise.all([walletApi.getBalance(), pickupApi.listActive()]);
+      setBalance(balanceResult.balance);
+      setActiveJobId(activeJobs[0]?.id ?? null);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         await clearSession();
@@ -61,6 +65,17 @@ export default function CollectorHomeScreen({ onViewJobs, onOpenWallet, onLogout
         <Text style={styles.jobsEmoji}>📋</Text>
         <Text style={styles.jobsText}>View available jobs</Text>
       </Pressable>
+
+      {activeJobId && (
+        <Pressable style={styles.activeCard} onPress={() => onResumeJob(activeJobId)}>
+          <Text style={styles.activeTitle}>Resume active job #{activeJobId}</Text>
+          <Text style={styles.activeText}>Continue arrival, payment, and disposal proof →</Text>
+        </Pressable>
+      )}
+
+      <Pressable style={styles.profileButton} onPress={onOpenProfile}>
+        <Text style={styles.profileText}>Profile and KYC</Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -84,4 +99,7 @@ const styles = StyleSheet.create({
   },
   jobsEmoji: { fontSize: 40, marginBottom: 8 },
   jobsText: { fontSize: 17, fontWeight: '800', color: '#0e7490' },
+  activeCard: { marginTop: 16, padding: 16, borderRadius: 14, backgroundColor: '#ecfeff', borderWidth: 1, borderColor: '#67e8f9' },
+  activeTitle: { color: '#0e7490', fontWeight: '800' }, activeText: { color: '#0891b2', marginTop: 4, fontSize: 12 },
+  profileButton: { marginTop: 14, paddingVertical: 14, alignItems: 'center' }, profileText: { color: '#475569', fontWeight: '700' },
 });

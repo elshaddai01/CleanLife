@@ -3,13 +3,27 @@ const { pool, withTenant } = require('../db/pool');
 const { hashPassword } = require('../utils/password');
 const { requireAdminKey, requireAuth } = require('../middleware/auth');
 const { handleDbError } = require('../utils/dbErrors');
+const { positiveInteger, nonEmptyString } = require('../utils/validation');
 
 const router = express.Router();
+
+router.get('/me', requireAuth, async (req, res) => {
+    if (req.collector.role !== 'collector') return res.status(403).json({ error: 'collector account required' });
+    try {
+        const result = await pool.query('SELECT * FROM get_collector_profile($1)', [req.collector.sub]);
+        if (result.rows.length === 0) return res.status(404).json({ error: 'collector not found' });
+        return res.json(result.rows[0]);
+    } catch (err) {
+        return handleDbError(err, res, 'collector profile lookup');
+    }
+});
 
 // [ONBOARD-03a] Independent self-registration — public endpoint.
 // Body: { username, password, subscription_tier? } (defaults to 'Silver')
 router.post('/register', async (req, res) => {
-    const { username, password, subscription_tier } = req.body;
+    const username = nonEmptyString(req.body.username);
+    const password = nonEmptyString(req.body.password);
+    const { subscription_tier } = req.body;
 
     if (!username || !password) {
         return res.status(400).json({ error: 'username and password are required' });
@@ -47,7 +61,9 @@ router.post('/register', async (req, res) => {
 // any tier sent in the body is ignored, per SRS 4.3 tier-inheritance rule.
 // Body: { username, password, company_code }
 router.post('/admin-create', requireAdminKey, async (req, res) => {
-    const { username, password, company_code } = req.body;
+    const username = nonEmptyString(req.body.username);
+    const password = nonEmptyString(req.body.password);
+    const company_code = nonEmptyString(req.body.company_code);
 
     if (!username || !password || !company_code) {
         return res.status(400).json({ error: 'username, password, and company_code are required' });
@@ -86,7 +102,8 @@ router.post('/admin-create', requireAdminKey, async (req, res) => {
 // [KYC-02] Collector submits their own KYC document — self-service, own tenant.
 // Body: { document_url, document_name? }
 router.post('/:id/kyc', requireAuth, async (req, res) => {
-    const collectorId = Number(req.params.id);
+    const collectorId = positiveInteger(req.params.id);
+    if (!collectorId) return res.status(400).json({ error: 'invalid collector id' });
     if (req.collector.sub !== collectorId) {
         return res.status(403).json({ error: 'you can only submit KYC for your own account' });
     }
@@ -116,7 +133,8 @@ router.post('/:id/kyc', requireAuth, async (req, res) => {
 // other admin action: no real admin/staff entity exists yet.
 // Body: { status } where status is 'verified' or 'rejected'
 router.post('/:id/kyc/review', requireAdminKey, async (req, res) => {
-    const collectorId = Number(req.params.id);
+    const collectorId = positiveInteger(req.params.id);
+    if (!collectorId) return res.status(400).json({ error: 'invalid collector id' });
     const { status } = req.body;
     if (!['verified', 'rejected'].includes(status)) {
         return res.status(400).json({ error: 'status must be verified or rejected' });

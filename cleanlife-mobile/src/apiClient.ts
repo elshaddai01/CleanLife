@@ -9,7 +9,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PickupStatus, WasteType, VehicleType } from './types';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.0.2.2:3000';
+export const API_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.0.2.2:3000').replace(/\/$/, '');
 const TOKEN_KEY = 'cleanlife_auth_token';
 const ROLE_KEY = 'cleanlife_auth_role';
 const USER_ID_KEY = 'cleanlife_auth_user_id';
@@ -57,7 +57,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  } catch {
+    throw new ApiError(0, `Cannot reach the CleanLife server at ${API_BASE}. Check the server address and Wi-Fi connection.`);
+  }
   const isJson = res.headers.get('content-type')?.includes('application/json');
   const body = isJson ? await res.json() : null;
 
@@ -171,6 +176,14 @@ export const pickupApi = {
     return request<BackendPickupRequest[]>('/pickup-requests/available');
   },
 
+  listMine() {
+    return request<BackendPickupRequest[]>('/pickup-requests/mine');
+  },
+
+  listActive() {
+    return request<BackendPickupRequest[]>('/pickup-requests/active');
+  },
+
   claim(requestId: number) {
     return request<{ id: number; routing_status: string; collector_id: number }>(
       `/pickup-requests/${requestId}/claim`,
@@ -206,6 +219,7 @@ export const pickupApi = {
       id: number;
       routing_status: BackendPickupRequest['routing_status'];
       collector_id: number | null;
+      payment_method: 'CASH' | 'MOMO';
       payment_status: BackendPickupRequest['payment_status'];
       collector_arrived_at: string | null;
       cash_collected_at: string | null;
@@ -255,5 +269,25 @@ export const kycApi = {
       `/collectors/${collectorId}/kyc`,
       { method: 'POST', body: JSON.stringify({ document_url, document_name }) }
     );
+  },
+  getCollectorProfile() {
+    return request<{
+      id: number;
+      username: string;
+      collector_type: 'corporate' | 'independent';
+      subscription_tier: 'Premium' | 'Gold' | 'Silver' | null;
+      kyc_status: 'unverified' | 'pending' | 'verified' | 'rejected';
+      kyc_document_name: string | null;
+      kyc_submitted_at: string | null;
+    }>('/collectors/me');
+  },
+};
+
+export const telemetryApi = {
+  heartbeat(area_id: string) {
+    return request<{ id: number; current_area_id: string; last_heartbeat_at: string }>('/telemetry/heartbeat', {
+      method: 'POST',
+      body: JSON.stringify({ area_id }),
+    });
   },
 };

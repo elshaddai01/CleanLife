@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
-import { walletApi, ApiError, clearSession } from '../../apiClient';
+import { walletApi, pickupApi, ApiError, clearSession } from '../../apiClient';
 
 type Props = {
   onRequestPickup: () => void;
@@ -8,6 +8,7 @@ type Props = {
   onOpenTracking: (requestId: number) => void;
   onLogout: () => void;
   lastRequestId: number | null;
+  onRecentRequest: (requestId: number) => void;
 };
 
 export default function ClientHomeScreen({
@@ -16,14 +17,16 @@ export default function ClientHomeScreen({
   onOpenTracking,
   onLogout,
   lastRequestId,
+  onRecentRequest,
 }: Props) {
   const [balance, setBalance] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadBalance = useCallback(async () => {
     try {
-      const result = await walletApi.getBalance();
-      setBalance(result.balance);
+      const [balanceResult, requests] = await Promise.all([walletApi.getBalance(), pickupApi.listMine()]);
+      setBalance(balanceResult.balance);
+      if (requests[0]) onRecentRequest(requests[0].id);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         await clearSession();
@@ -34,7 +37,7 @@ export default function ClientHomeScreen({
     } finally {
       setRefreshing(false);
     }
-  }, [onLogout]);
+  }, [onLogout, onRecentRequest]);
 
   useEffect(() => {
     loadBalance();

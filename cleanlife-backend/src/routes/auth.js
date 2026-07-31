@@ -3,11 +3,13 @@ const { pool } = require('../db/pool');
 const { comparePassword } = require('../utils/password');
 const { signCollectorToken, signClientToken } = require('../utils/jwt');
 const { requireAuth } = require('../middleware/auth');
+const { nonEmptyString } = require('../utils/validation');
 
 const router = express.Router();
 
 router.post('/login', async (req, res) => {
-    const { username, password } = req.body;
+    const username = nonEmptyString(req.body.username);
+    const password = nonEmptyString(req.body.password);
 
     if (!username || !password) {
         return res.status(400).json({ error: 'username and password are required' });
@@ -46,7 +48,8 @@ router.post('/login', async (req, res) => {
 });
 
 router.post('/client/login', async (req, res) => {
-    const { phone_number, password } = req.body;
+    const phone_number = nonEmptyString(req.body.phone_number);
+    const password = nonEmptyString(req.body.password);
     if (!phone_number || !password) {
         return res.status(400).json({ error: 'phone_number and password are required' });
     }
@@ -77,7 +80,7 @@ router.post('/client/login', async (req, res) => {
 });
 
 router.get('/me', requireAuth, (req, res) => {
-    return res.json({ collector: req.collector });
+    return res.json({ user: req.collector });
 });
 
 module.exports = router;

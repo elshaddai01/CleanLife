@@ -2,13 +2,17 @@ const express = require('express');
 const { pool, withTenant } = require('../db/pool');
 const { handleDbError } = require('../utils/dbErrors');
 const { hashPassword } = require('../utils/password');
+const { nonEmptyString } = require('../utils/validation');
 
 const router = express.Router();
 
 // POST /clients/register
 // Body: { name, phone_number, password, company_code? }
 router.post('/register', async (req, res) => {
-    const { name, phone_number, password, company_code } = req.body;
+    const name = nonEmptyString(req.body.name);
+    const phone_number = nonEmptyString(req.body.phone_number);
+    const password = nonEmptyString(req.body.password);
+    const company_code = nonEmptyString(req.body.company_code);
 
     if (!name || !phone_number || !password) {
         return res.status(400).json({ error: 'name, phone_number, and password are required' });
