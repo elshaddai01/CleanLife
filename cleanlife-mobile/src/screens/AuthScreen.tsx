@@ -8,6 +8,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { authApi, setSession, ApiError } from '../apiClient';
 
@@ -29,6 +31,18 @@ export default function AuthScreen({ initialRole, onAuthenticated, onBack }: Pro
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
+    if (password.length < 8) {
+      Alert.alert('Invalid password', 'Password must be at least 8 characters.');
+      return;
+    }
+    if (role === 'client' && (!phone.trim() || (mode === 'register' && !name.trim()))) {
+      Alert.alert('Missing details', mode === 'register' ? 'Name and phone number are required.' : 'Phone number is required.');
+      return;
+    }
+    if (role === 'collector' && !username.trim()) {
+      Alert.alert('Missing username', 'Username is required.');
+      return;
+    }
     setLoading(true);
     try {
       if (role === 'client') {
@@ -60,7 +74,8 @@ export default function AuthScreen({ initialRole, onAuthenticated, onBack }: Pro
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <Pressable onPress={onBack} style={styles.backButton}>
         <Text style={styles.backText}>← Back to role selection</Text>
       </Pressable>
@@ -125,10 +140,12 @@ export default function AuthScreen({ initialRole, onAuthenticated, onBack }: Pro
         )}
       </Pressable>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   container: { flexGrow: 1, justifyContent: 'center', padding: 24, backgroundColor: '#f8fafc' },
   backButton: { marginBottom: 12 },
   backText: { color: '#059669', fontWeight: '700', fontSize: 14 },

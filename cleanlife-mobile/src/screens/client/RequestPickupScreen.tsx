@@ -34,7 +34,7 @@ export default function RequestPickupScreen({ onBack, onCreated }: Props) {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Location permission needed', 'Enable location access to auto-fill your coordinates, or they will default to a fixed test location.');
+        Alert.alert('Location permission needed', 'Enable location access so the collector can find the pickup.');
         return;
       }
       // One-shot read — no continuous tracking, matching the backend's
@@ -55,17 +55,24 @@ export default function RequestPickupScreen({ onBack, onCreated }: Props) {
       Alert.alert('Not logged in', 'Please log in again.');
       return;
     }
-    const effectiveLat = lat ?? 3.848;
-    const effectiveLng = lng ?? 11.5021;
+    const count = Number(bagCount);
+    if (!Number.isInteger(count) || count <= 0) {
+      Alert.alert('Invalid bag count', 'Enter a positive whole number of bags.');
+      return;
+    }
+    if (lat == null || lng == null) {
+      Alert.alert('Pickup location required', 'Capture your current location before submitting.');
+      return;
+    }
 
     setCreating(true);
     try {
       const result = await pickupApi.create({
         client_id: clientId,
-        bag_count: Number(bagCount),
+        bag_count: count,
         waste_type: wasteType,
-        latitude: effectiveLat,
-        longitude: effectiveLng,
+        latitude: lat,
+        longitude: lng,
         payment_method: paymentMethod,
       });
       onCreated(result.id);
@@ -115,7 +122,7 @@ export default function RequestPickupScreen({ onBack, onCreated }: Props) {
           </Text>
         )}
       </Pressable>
-      {!lat && <Text style={styles.locationHint}>If skipped, a default test location will be used.</Text>}
+      {!lat && <Text style={styles.locationHint}>Your location is required and is captured only once for this request.</Text>}
 
       <Text style={styles.label}>Payment method</Text>
       <View style={styles.pillRow}>

@@ -2,6 +2,7 @@ const express = require('express');
 const { pool, withTenant } = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { handleDbError } = require('../utils/dbErrors');
+const { finiteNumber } = require('../utils/validation');
 
 const router = express.Router();
 
@@ -51,8 +52,9 @@ router.get('/transactions', requireAuth, async (req, res) => {
 // in paymentAndProof.js — this is a placeholder until that's wired up here too.
 // Body: { amount, description? }
 router.post('/topup', requireAuth, requireRole('client'), async (req, res) => {
-    const { amount, description } = req.body;
-    if (!amount || amount <= 0) {
+    const { description } = req.body;
+    const amount = finiteNumber(req.body.amount, { min: 0.01 });
+    if (amount === null) {
         return res.status(400).json({ error: 'amount must be a positive number' });
     }
 
@@ -72,8 +74,9 @@ router.post('/topup', requireAuth, requireRole('client'), async (req, res) => {
 // inside create_wallet_transaction.
 // Body: { amount, description? }
 router.post('/withdraw', requireAuth, requireRole('collector'), async (req, res) => {
-    const { amount, description } = req.body;
-    if (!amount || amount <= 0) {
+    const { description } = req.body;
+    const amount = finiteNumber(req.body.amount, { min: 0.01 });
+    if (amount === null) {
         return res.status(400).json({ error: 'amount must be a positive number' });
     }
 

@@ -1,11 +1,8 @@
 const jwt = require('jsonwebtoken');
+const config = require('../config/env');
 
-const SECRET = process.env.JWT_SECRET;
-const EXPIRES_IN = '12h';
-
-if (!SECRET) {
-    throw new Error('JWT_SECRET is not set in environment (.env)');
-}
+const SECRET = config.jwtSecret;
+const EXPIRES_IN = config.jwtExpiresIn;
 
 function signCollectorToken(collector) {
     return jwt.sign(

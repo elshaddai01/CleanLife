@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -15,6 +15,7 @@ import TrackPickupScreen from './src/screens/client/TrackPickupScreen';
 import CollectorHomeScreen from './src/screens/collector/CollectorHomeScreen';
 import AvailableJobsScreen from './src/screens/collector/AvailableJobsScreen';
 import ActiveJobScreen from './src/screens/collector/ActiveJobScreen';
+import CollectorProfileScreen from './src/screens/collector/CollectorProfileScreen';
 
 import WalletScreen from './src/screens/shared/WalletScreen';
 
@@ -23,7 +24,7 @@ type Phase = 'checking' | 'splash' | 'role_select' | 'auth' | 'client_app' | 'co
 // Client-side screens within the client app, once logged in.
 type ClientScreen = 'home' | 'request' | 'track' | 'wallet';
 // Collector-side screens within the collector app, once logged in.
-type CollectorScreen = 'home' | 'jobs' | 'active_job' | 'wallet';
+type CollectorScreen = 'home' | 'jobs' | 'active_job' | 'wallet' | 'profile';
 
 export default function App() {
   const [phase, setPhase] = useState<Phase>('checking');
@@ -49,19 +50,21 @@ export default function App() {
     })();
   }, []);
 
-  const handleSessionExpired = async () => {
+  const handleSessionExpired = useCallback(async () => {
     await clearSession();
     setPhase('role_select');
     setClientScreen('home');
     setCollectorScreen('home');
-  };
+  }, []);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     await clearSession();
     setPhase('role_select');
     setClientScreen('home');
     setCollectorScreen('home');
-  };
+  }, []);
+
+  const handleRecentRequest = useCallback((id: number) => setLastRequestId(id), []);
 
   if (phase === 'checking') {
     return (
@@ -108,6 +111,7 @@ export default function App() {
             setClientScreen('track');
           }}
           onLogout={handleLogout}
+          onRecentRequest={handleRecentRequest}
         />
       )}
       {phase === 'client_app' && clientScreen === 'request' && (
@@ -128,7 +132,7 @@ export default function App() {
         />
       )}
       {phase === 'client_app' && clientScreen === 'wallet' && (
-        <WalletScreen onBack={() => setClientScreen('home')} onSessionExpired={handleSessionExpired} />
+        <WalletScreen role="client" onBack={() => setClientScreen('home')} onSessionExpired={handleSessionExpired} />
       )}
 
       {/* ---------- COLLECTOR APP ---------- */}
@@ -137,6 +141,11 @@ export default function App() {
           onViewJobs={() => setCollectorScreen('jobs')}
           onOpenWallet={() => setCollectorScreen('wallet')}
           onLogout={handleLogout}
+          onOpenProfile={() => setCollectorScreen('profile')}
+          onResumeJob={(id) => {
+            setActiveJobId(id);
+            setCollectorScreen('active_job');
+          }}
         />
       )}
       {phase === 'collector_app' && collectorScreen === 'jobs' && (
@@ -161,7 +170,10 @@ export default function App() {
         />
       )}
       {phase === 'collector_app' && collectorScreen === 'wallet' && (
-        <WalletScreen onBack={() => setCollectorScreen('home')} onSessionExpired={handleSessionExpired} />
+        <WalletScreen role="collector" onBack={() => setCollectorScreen('home')} onSessionExpired={handleSessionExpired} />
+      )}
+      {phase === 'collector_app' && collectorScreen === 'profile' && (
+        <CollectorProfileScreen onBack={() => setCollectorScreen('home')} onSessionExpired={handleSessionExpired} />
       )}
     </SafeAreaProvider>
   );

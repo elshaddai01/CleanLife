@@ -2,18 +2,18 @@
   "name": "cleanlife-backend",
   "version": "1.0.0",
   "description": "CleanLife waste management marketplace API",
-  "main": "src/app.js",
+  "main": "app.js",
   "scripts": {
-    "start": "node src/app.js",
-    "migrate": "psql \"$DATABASE_URL\" -f migrations/001_init_schema.sql && psql \"$DATABASE_URL\" -f migrations/002_rls_policies.sql && psql \"$DATABASE_URL\" -f migrations/003_auth_login_function.sql && psql \"$DATABASE_URL\" -f migrations/004_rls_hardening.sql && psql \"$DATABASE_URL\" -f migrations/005_heartbeat_zones.sql && for f in 006_dispatch_engine 007_pickup_request_broadcast_visibility 008_fix_current_tenant_empty_string 009_find_pickup_request_company 010_payment_escrow 011_proof_of_work 012_fix_momo_requested_at 013_client_auth 014_wallet_ledger 015_kyc 016_fix_wallet_price_lookup 017_fix_wallet_ambiguous_id 018_grant_wallet_transactions_select; do psql \"$DATABASE_URL\" -f migrations/$f.sql; done"
+    "start": "node app.js",
+    "dev": "node --watch app.js",
+    "migrate": "node scripts/migrate.js",
+    "check": "node --check app.js && node scripts/check-source.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "bullmq": "^5.80.9",
     "cors": "^2.8.6",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "ioredis": "^5.11.1",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.11.5"
   }

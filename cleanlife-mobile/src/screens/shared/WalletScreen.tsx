@@ -7,6 +7,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   Pressable,
+  TextInput,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { walletApi, ApiError } from '../../apiClient';
 
@@ -34,13 +38,16 @@ const CREDIT_TYPES = new Set(['job_earnings', 'top_up', 'referral_bonus']);
 type Props = {
   onBack: () => void;
   onSessionExpired: () => void;
+  role: 'client' | 'collector';
 };
 
-export default function WalletScreen({ onBack, onSessionExpired }: Props) {
+export default function WalletScreen({ onBack, onSessionExpired, role }: Props) {
   const [balance, setBalance] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -71,8 +78,29 @@ export default function WalletScreen({ onBack, onSessionExpired }: Props) {
     load();
   };
 
+  const handleWalletAction = async () => {
+    const value = Number(amount);
+    if (!Number.isFinite(value) || value <= 0) {
+      Alert.alert('Invalid amount', 'Enter a positive amount.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      if (role === 'client') await walletApi.topup(value);
+      else await walletApi.withdraw(value);
+      setAmount('');
+      await load();
+      Alert.alert('Success', role === 'client' ? 'Wallet topped up.' : 'Withdrawal recorded.');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) return onSessionExpired();
+      Alert.alert('Transaction failed', err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable onPress={onBack} style={styles.backButton}>
         <Text style={styles.backText}>← Back</Text>
       </Pressable>
@@ -87,6 +115,19 @@ export default function WalletScreen({ onBack, onSessionExpired }: Props) {
       </View>
 
       <Text style={styles.sectionTitle}>Transaction history</Text>
+
+      <View style={styles.actionRow}>
+        <TextInput
+          style={styles.amountInput}
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="decimal-pad"
+          placeholder="Amount in FCFA"
+        />
+        <Pressable style={styles.actionButton} onPress={handleWalletAction} disabled={submitting}>
+          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.actionText}>{role === 'client' ? 'Top up' : 'Withdraw'}</Text>}
+        </Pressable>
+      </View>
 
       <FlatList
         data={transactions}
@@ -113,7 +154,7 @@ export default function WalletScreen({ onBack, onSessionExpired }: Props) {
           );
         }}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -125,6 +166,10 @@ const styles = StyleSheet.create({
   balanceLabel: { color: '#d1fae5', fontSize: 13 },
   balanceValue: { color: '#fff', fontSize: 28, fontWeight: '900', marginTop: 4 },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: '#1e293b', marginBottom: 10 },
+  actionRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  amountInput: { flex: 1, backgroundColor: '#fff', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 10, paddingHorizontal: 12 },
+  actionButton: { minWidth: 94, backgroundColor: '#059669', borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  actionText: { color: '#fff', fontWeight: '800' },
   emptyContainer: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
   emptyText: { color: '#94a3b8', fontSize: 13 },
   txRow: {

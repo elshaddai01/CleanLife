@@ -3,22 +3,22 @@ const { pool } = require('../db/pool');
 const GEOFENCE_RADIUS_METERS = 100;
 
 // [POW-04] GPS path: is there an authorized dumpster within 100m of the
-// EXIF coordinates? Uses ST_DWithin on geography for accurate meter-based
-// distance (not degrees), per SRS 4.4.
+// EXIF coordinates? Distance is computed in meters with the Haversine formula.
 async function findDumpsterWithinGeofence(latitude, longitude) {
     const result = await pool.query(
-        `SELECT id
+        `SELECT id,
+                6371000 * 2 * asin(sqrt(
+                    power(sin(radians(latitude - $1) / 2), 2) +
+                    cos(radians($1)) * cos(radians(latitude)) *
+                    power(sin(radians(longitude - $2) / 2), 2)
+                )) AS distance_meters
          FROM dumpsters
-         WHERE ST_DWithin(
-             location_coordinates::geography,
-             ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
-             $3
-         )
-         ORDER BY location_coordinates::geography <-> ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography
+         ORDER BY distance_meters
          LIMIT 1`,
-        [longitude, latitude, GEOFENCE_RADIUS_METERS]
+        [latitude, longitude]
     );
-    return result.rows[0] || null;
+    const nearest = result.rows[0] || null;
+    return nearest && Number(nearest.distance_meters) <= GEOFENCE_RADIUS_METERS ? nearest : null;
 }
 
 // [POW-05] Bin-code fallback: an explicit code entry always overrides

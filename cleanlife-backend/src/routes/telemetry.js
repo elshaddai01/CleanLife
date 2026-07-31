@@ -84,7 +84,7 @@ router.post('/heartbeat/batch', requireAuth, async (req, res) => {
 router.get('/dumpsters', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT id, ST_Y(location_coordinates) AS latitude, ST_X(location_coordinates) AS longitude
+            `SELECT id, latitude, longitude, bin_code
              FROM dumpsters`
         );
         return res.json(result.rows);

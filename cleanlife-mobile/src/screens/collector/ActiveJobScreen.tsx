@@ -25,6 +25,7 @@ export default function ActiveJobScreen({ requestId, onBack, onCompleted, onSess
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [binCode, setBinCode] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
   const [locating, setLocating] = useState(false);
@@ -33,6 +34,7 @@ export default function ActiveJobScreen({ requestId, onBack, onCompleted, onSess
     try {
       const result = await pickupApi.getStatus(requestId);
       setStatus(result);
+      setPaymentMethod(result.payment_method);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         onSessionExpired();
@@ -45,7 +47,9 @@ export default function ActiveJobScreen({ requestId, onBack, onCompleted, onSess
   }, [requestId, onSessionExpired]);
 
   useEffect(() => {
-    load();
+    void load();
+    const timer = setInterval(load, 5000);
+    return () => clearInterval(timer);
   }, [load]);
 
   const handleArrive = async () => {
@@ -94,6 +98,10 @@ export default function ActiveJobScreen({ requestId, onBack, onCompleted, onSess
   };
 
   const handleSubmitProof = async () => {
+    if (!photoUrl.trim()) {
+      Alert.alert('Photo required', 'Enter the URL of the disposal photo.');
+      return;
+    }
     if (!binCode && (lat == null || lng == null)) {
       Alert.alert('Missing verification', 'Either enter a bin code or capture your location.');
       return;
@@ -101,7 +109,7 @@ export default function ActiveJobScreen({ requestId, onBack, onCompleted, onSess
     setBusy('proof');
     try {
       const result = await pickupApi.submitProofOfWork(requestId, {
-        photo_storage_url: 's3://mobile-disposal-photo.jpg',
+        photo_storage_url: photoUrl.trim(),
         exif_latitude: lat ?? undefined,
         exif_longitude: lng ?? undefined,
         bin_code: binCode || undefined,
@@ -171,6 +179,15 @@ export default function ActiveJobScreen({ requestId, onBack, onCompleted, onSess
       {arrived && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Proof of disposal</Text>
+          <Text style={styles.label}>Disposal photo URL</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="https://..."
+            value={photoUrl}
+            onChangeText={setPhotoUrl}
+            autoCapitalize="none"
+            keyboardType="url"
+          />
           <Text style={styles.label}>Bin code (if painted on the dumpster)</Text>
           <TextInput
             style={styles.input}

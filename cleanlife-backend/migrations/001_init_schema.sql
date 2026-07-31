@@ -1,7 +1,5 @@
 -- [DB-01] Core schema + enums per ER_DIAGRAM_CL_v6
 
-CREATE EXTENSION IF NOT EXISTS postgis;
-
 CREATE TYPE subscription_tier_enum AS ENUM ('Premium', 'Gold', 'Silver');
 CREATE TYPE collector_type_enum AS ENUM ('corporate', 'independent');
 CREATE TYPE waste_type_enum AS ENUM ('Organic', 'Recyclable', 'Hazardous', 'Heavy Debris');
@@ -39,8 +37,9 @@ CREATE TABLE mobility_types (
 );
 
 CREATE TABLE dumpsters (
-    id                      SERIAL PRIMARY KEY,
-    location_coordinates    GEOMETRY(Point, 4326) NOT NULL
+    id          SERIAL PRIMARY KEY,
+    latitude    DECIMAL(9,6) NOT NULL CHECK (latitude BETWEEN -90 AND 90),
+    longitude   DECIMAL(9,6) NOT NULL CHECK (longitude BETWEEN -180 AND 180)
 );
 
 CREATE TABLE pickup_requests (
@@ -65,10 +64,9 @@ CREATE TABLE proof_of_works (
     created_at              TIMESTAMP NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_dumpsters_geom ON dumpsters USING GIST (location_coordinates);
 CREATE INDEX idx_clients_company_id ON clients(company_id);
 CREATE INDEX idx_collectors_company_id ON collectors(company_id);
 CREATE INDEX idx_pickup_requests_client_id ON pickup_requests(client_id);
 CREATE INDEX idx_pickup_requests_routing_status ON pickup_requests(routing_status);
 
-INSERT INTO mobility_types (name) VALUES ('Wheelbarrow'), ('Tricycle'), ('Van');
+INSERT INTO mobility_types (name) VALUES ('Wheelbarrow'), ('Tricycle'), ('Van') ON CONFLICT (name) DO NOTHING;

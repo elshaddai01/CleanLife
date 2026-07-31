@@ -16,14 +16,15 @@ const MOBILITY_RULES = [
 async function findNearestDumpster(latitude, longitude) {
     const result = await pool.query(
         `SELECT id,
-                ST_Distance(
-                    location_coordinates::geography,
-                    ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography
-                ) AS distance_meters
+                6371000 * 2 * asin(sqrt(
+                    power(sin(radians(latitude - $1) / 2), 2) +
+                    cos(radians($1)) * cos(radians(latitude)) *
+                    power(sin(radians(longitude - $2) / 2), 2)
+                )) AS distance_meters
          FROM dumpsters
-         ORDER BY location_coordinates::geography <-> ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography
+         ORDER BY distance_meters
          LIMIT 1`,
-        [longitude, latitude]
+        [latitude, longitude]
     );
     return result.rows[0] || null;
 }
