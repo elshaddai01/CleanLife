@@ -9,10 +9,12 @@
     "ios": {
       "supportsTablet": true
     },
+    "android": {
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
     }
   }
+}
 
