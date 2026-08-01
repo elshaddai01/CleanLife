@@ -9,6 +9,8 @@ const pickupRequestsRouter = require('./src/routes/pickupRequests');
 const paymentAndProofRouter = require('./src/routes/paymentAndProof');
 const walletRouter = require('./src/routes/wallet');
 const adminRouter = require('./src/routes/admin');
+const uploadsRouter = require('./src/routes/uploads');
+const path = require('path');
 const { startDispatchWorker } = require('./src/queues/dispatchWorker');
 const { pool, checkDatabaseConnection } = require('./src/db/pool');
 
@@ -20,7 +22,8 @@ app.use(cors({
         return callback(new Error('origin is not allowed by CORS'));
     },
 }));
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '12mb' }));
+app.use('/uploads', express.static(path.resolve(__dirname, 'uploads'), { maxAge: '1d' }));
 
 app.use('/clients', clientsRouter);
 app.use('/collectors', collectorsRouter);
@@ -30,6 +33,7 @@ app.use('/pickup-requests', pickupRequestsRouter);
 app.use('/pickup-requests', paymentAndProofRouter);
 app.use('/wallet', walletRouter);
 app.use('/admin', adminRouter);
+app.use('/uploads', uploadsRouter);
 
 app.get('/health', async (req, res) => {
     try {

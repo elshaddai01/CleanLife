@@ -48,7 +48,7 @@ export default function CollectorHomeScreen({ onViewJobs, onOpenWallet, onLogout
     >
       <View style={styles.headerRow}>
         <Text style={styles.title}>CleanLife</Text>
-        <Pressable onPress={onLogout}>
+        <Pressable onPress={() => void onLogout()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Log out">
           <Text style={styles.logout}>Log out</Text>
         </Pressable>
       </View>

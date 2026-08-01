@@ -2,15 +2,16 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   Pressable,
   StyleSheet,
   ScrollView,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import * as Location from 'expo-location';
-import { pickupApi, ApiError } from '../../apiClient';
+import * as ImagePicker from 'expo-image-picker';
+import { pickupApi, uploadApi, ApiError } from '../../apiClient';
 
 type Props = {
   requestId: number;
@@ -24,8 +25,8 @@ export default function ActiveJobScreen({ requestId, onBack, onCompleted, onSess
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'MOMO' | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
-  const [binCode, setBinCode] = useState('');
-  const [photoUrl, setPhotoUrl] = useState('');
+  const [snapshot, setSnapshot] = useState<{ uri: string; base64: string; mimeType: 'image/jpeg' | 'image/png' } | null>(null);
+  const [openingCamera, setOpeningCamera] = useState(false);
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
   const [locating, setLocating] = useState(false);
@@ -98,21 +99,21 @@ export default function ActiveJobScreen({ requestId, onBack, onCompleted, onSess
   };
 
   const handleSubmitProof = async () => {
-    if (!photoUrl.trim()) {
-      Alert.alert('Photo required', 'Enter the URL of the disposal photo.');
+    if (!snapshot) {
+      Alert.alert('Snapshot required', 'Take a disposal snapshot before submitting proof.');
       return;
     }
-    if (!binCode && (lat == null || lng == null)) {
-      Alert.alert('Missing verification', 'Either enter a bin code or capture your location.');
+    if (lat == null || lng == null) {
+      Alert.alert('GPS location required', 'Capture your current GPS location before completing the job.');
       return;
     }
     setBusy('proof');
     try {
+      const uploaded = await uploadApi.uploadProofSnapshot(snapshot.base64, snapshot.mimeType);
       const result = await pickupApi.submitProofOfWork(requestId, {
-        photo_storage_url: photoUrl.trim(),
+        photo_storage_url: uploaded.url,
         exif_latitude: lat ?? undefined,
         exif_longitude: lng ?? undefined,
-        bin_code: binCode || undefined,
       });
       Alert.alert(
         'Job completed!',
@@ -130,6 +131,32 @@ export default function ActiveJobScreen({ requestId, onBack, onCompleted, onSess
       }
     } finally {
       setBusy(null);
+    }
+  };
+
+  const handleTakeSnapshot = async () => {
+    setOpeningCamera(true);
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Camera permission required', 'Allow camera access to photograph the completed disposal.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.7,
+        base64: true,
+      });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      if (!asset.base64) throw new Error('The camera did not return image data. Please retake the snapshot.');
+      const mimeType = asset.mimeType === 'image/png' ? 'image/png' : 'image/jpeg';
+      setSnapshot({ uri: asset.uri, base64: asset.base64, mimeType });
+    } catch (err) {
+      Alert.alert('Camera error', err instanceof Error ? err.message : String(err));
+    } finally {
+      setOpeningCamera(false);
     }
   };
 
@@ -179,24 +206,24 @@ export default function ActiveJobScreen({ requestId, onBack, onCompleted, onSess
       {arrived && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Proof of disposal</Text>
-          <Text style={styles.label}>Disposal photo URL</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="https://..."
-            value={photoUrl}
-            onChangeText={setPhotoUrl}
-            autoCapitalize="none"
-            keyboardType="url"
-          />
-          <Text style={styles.label}>Bin code (if painted on the dumpster)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. BIN-YAO-042"
-            value={binCode}
-            onChangeText={setBinCode}
-            autoCapitalize="characters"
-          />
-          <Text style={styles.orText}>— or —</Text>
+          <Text style={styles.photoHint}>Take a clear photo of the waste inside the authorized dumpster. Gallery uploads are disabled.</Text>
+          {snapshot ? (
+            <View style={styles.previewCard}>
+              <Image source={{ uri: snapshot.uri }} style={styles.previewImage} />
+              <View style={styles.previewFooter}>
+                <View>
+                  <Text style={styles.previewTitle}>Snapshot ready</Text>
+                  <Text style={styles.previewSubtitle}>This photo will be uploaded as proof.</Text>
+                </View>
+                <Pressable onPress={handleTakeSnapshot} hitSlop={10}><Text style={styles.retakeText}>Retake</Text></Pressable>
+              </View>
+            </View>
+          ) : (
+            <Pressable style={styles.cameraButton} onPress={handleTakeSnapshot} disabled={openingCamera}>
+              {openingCamera ? <ActivityIndicator color="#fff" /> : <><Text style={styles.cameraIcon}>📷</Text><Text style={styles.cameraText}>Open camera</Text></>}
+            </Pressable>
+          )}
+          <Text style={styles.label}>Disposal GPS location</Text>
           <Pressable style={styles.locationButton} onPress={handleUseLocation} disabled={locating}>
             {locating ? (
               <ActivityIndicator color="#0891b2" />
@@ -207,8 +234,8 @@ export default function ActiveJobScreen({ requestId, onBack, onCompleted, onSess
             )}
           </Pressable>
 
-          <Pressable style={styles.submitButton} onPress={handleSubmitProof} disabled={busy === 'proof'}>
-            {busy === 'proof' ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Submit proof & complete job</Text>}
+          <Pressable style={[styles.submitButton, (!snapshot || lat == null || lng == null) && styles.buttonDisabled]} onPress={handleSubmitProof} disabled={busy === 'proof' || !snapshot || lat == null || lng == null}>
+            {busy === 'proof' ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Upload snapshot & complete job</Text>}
           </Pressable>
         </View>
       )}
@@ -227,21 +254,19 @@ const styles = StyleSheet.create({
   actionText: { color: '#fff', fontWeight: '800' },
   section: { marginTop: 12, backgroundColor: '#fff', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#e2e8f0' },
   sectionTitle: { fontSize: 15, fontWeight: '800', color: '#1e293b', marginBottom: 10 },
+  photoHint: { fontSize: 12, color: '#64748b', lineHeight: 18, marginBottom: 12 },
+  cameraButton: { minHeight: 120, borderRadius: 14, backgroundColor: '#0891b2', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  cameraIcon: { fontSize: 32, marginBottom: 6 }, cameraText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  previewCard: { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#a5f3fc', marginBottom: 16, backgroundColor: '#ecfeff' },
+  previewImage: { width: '100%', height: 220, backgroundColor: '#cbd5e1' }, previewFooter: { padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  previewTitle: { color: '#0e7490', fontWeight: '800' }, previewSubtitle: { color: '#64748b', fontSize: 11, marginTop: 2 }, retakeText: { color: '#0891b2', fontWeight: '800' },
   infoText: { fontSize: 13, color: '#64748b' },
   refreshLink: { marginTop: 10, alignItems: 'center' },
   refreshLinkText: { color: '#0891b2', fontWeight: '600', fontSize: 12 },
   label: { fontSize: 12, fontWeight: '700', color: '#475569', marginBottom: 6 },
-  input: {
-    backgroundColor: '#f1f5f9',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  orText: { textAlign: 'center', color: '#94a3b8', fontSize: 12, marginVertical: 10 },
   locationButton: { borderWidth: 1, borderColor: '#0891b2', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
   locationButtonText: { color: '#0891b2', fontWeight: '700', fontSize: 13 },
   submitButton: { backgroundColor: '#059669', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
   submitText: { color: '#fff', fontWeight: '800' },
+  buttonDisabled: { backgroundColor: '#94a3b8' },
 });

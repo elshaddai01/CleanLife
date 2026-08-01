@@ -5,6 +5,7 @@ import { walletApi, pickupApi, ApiError, clearSession } from '../../apiClient';
 type Props = {
   onRequestPickup: () => void;
   onOpenWallet: () => void;
+  onViewRequests: () => void;
   onOpenTracking: (requestId: number) => void;
   onLogout: () => void;
   lastRequestId: number | null;
@@ -14,6 +15,7 @@ type Props = {
 export default function ClientHomeScreen({
   onRequestPickup,
   onOpenWallet,
+  onViewRequests,
   onOpenTracking,
   onLogout,
   lastRequestId,
@@ -55,7 +57,7 @@ export default function ClientHomeScreen({
     >
       <View style={styles.headerRow}>
         <Text style={styles.title}>CleanLife</Text>
-        <Pressable onPress={onLogout}>
+        <Pressable onPress={() => void onLogout()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Log out">
           <Text style={styles.logout}>Log out</Text>
         </Pressable>
       </View>
@@ -79,6 +81,11 @@ export default function ClientHomeScreen({
           <Text style={styles.trackSubtitle}>Request #{lastRequestId} →</Text>
         </Pressable>
       )}
+
+      <Pressable style={styles.historyButton} onPress={onViewRequests}>
+        <Text style={styles.historyTitle}>View all requests</Text>
+        <Text style={styles.historySubtitle}>Open your complete pickup history →</Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -112,4 +119,6 @@ const styles = StyleSheet.create({
   },
   trackTitle: { fontSize: 14, fontWeight: '700', color: '#065f46' },
   trackSubtitle: { fontSize: 13, color: '#059669', marginTop: 4 },
+  historyButton: { marginTop: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 14, padding: 16 },
+  historyTitle: { color: '#1e293b', fontWeight: '800' }, historySubtitle: { color: '#64748b', fontSize: 12, marginTop: 4 },
 });

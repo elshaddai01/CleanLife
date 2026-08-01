@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { getToken, getStoredRole, clearSession } from './src/apiClient';
 
 import SplashScreen from './src/screens/SplashScreen';
@@ -11,6 +11,7 @@ import AuthScreen from './src/screens/AuthScreen';
 import ClientHomeScreen from './src/screens/client/ClientHomeScreen';
 import RequestPickupScreen from './src/screens/client/RequestPickupScreen';
 import TrackPickupScreen from './src/screens/client/TrackPickupScreen';
+import MyRequestsScreen from './src/screens/client/MyRequestsScreen';
 
 import CollectorHomeScreen from './src/screens/collector/CollectorHomeScreen';
 import AvailableJobsScreen from './src/screens/collector/AvailableJobsScreen';
@@ -22,7 +23,7 @@ import WalletScreen from './src/screens/shared/WalletScreen';
 type Phase = 'checking' | 'splash' | 'role_select' | 'auth' | 'client_app' | 'collector_app';
 
 // Client-side screens within the client app, once logged in.
-type ClientScreen = 'home' | 'request' | 'track' | 'wallet';
+type ClientScreen = 'home' | 'request' | 'requests' | 'track' | 'wallet';
 // Collector-side screens within the collector app, once logged in.
 type CollectorScreen = 'home' | 'jobs' | 'active_job' | 'wallet' | 'profile';
 
@@ -58,10 +59,20 @@ export default function App() {
   }, []);
 
   const handleLogout = useCallback(async () => {
-    await clearSession();
+    // Change screens immediately so logout never appears unresponsive while
+    // AsyncStorage is completing its disk write.
     setPhase('role_select');
+    setRole('client');
     setClientScreen('home');
     setCollectorScreen('home');
+    setLastRequestId(null);
+    setTrackingId(null);
+    setActiveJobId(null);
+    try {
+      await clearSession();
+    } catch (error) {
+      console.error('Could not clear the persisted session:', error);
+    }
   }, []);
 
   const handleRecentRequest = useCallback((id: number) => setLastRequestId(id), []);
@@ -76,7 +87,15 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="light" />
+      <StatusBar style={phase === 'splash' ? 'light' : 'dark'} />
+      <SafeAreaView
+        style={[
+          styles.safeArea,
+          phase === 'splash' && styles.safeAreaSplash,
+          phase === 'role_select' && styles.safeAreaRoleSelection,
+        ]}
+        edges={['top', 'right', 'bottom', 'left']}
+      >
 
       {phase === 'splash' && <SplashScreen onFinished={() => setPhase('role_select')} />}
 
@@ -106,6 +125,7 @@ export default function App() {
           lastRequestId={lastRequestId}
           onRequestPickup={() => setClientScreen('request')}
           onOpenWallet={() => setClientScreen('wallet')}
+          onViewRequests={() => setClientScreen('requests')}
           onOpenTracking={(id) => {
             setTrackingId(id);
             setClientScreen('track');
@@ -175,10 +195,24 @@ export default function App() {
       {phase === 'collector_app' && collectorScreen === 'profile' && (
         <CollectorProfileScreen onBack={() => setCollectorScreen('home')} onSessionExpired={handleSessionExpired} />
       )}
+      {phase === 'client_app' && clientScreen === 'requests' && (
+        <MyRequestsScreen
+          onBack={() => setClientScreen('home')}
+          onSessionExpired={handleSessionExpired}
+          onOpenRequest={(id) => {
+            setTrackingId(id);
+            setClientScreen('track');
+          }}
+        />
+      )}
+      </SafeAreaView>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' },
+  safeArea: { flex: 1, backgroundColor: '#f8fafc' },
+  safeAreaSplash: { backgroundColor: '#059669' },
+  safeAreaRoleSelection: { backgroundColor: '#f0fdf4' },
 });
