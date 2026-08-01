@@ -12,6 +12,16 @@
     "android": {
       "predictiveBackGestureEnabled": false
     },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow CleanLife to take disposal proof photos.",
+          "photosPermission": false,
+          "microphonePermission": false
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     }

@@ -55,4 +55,5 @@ module.exports = Object.freeze({
     dispatchPollMs: positiveInteger('DISPATCH_POLL_MS', 15000),
     adminHoldMs: positiveInteger('ADMIN_HOLD_MS', 120000),
     tierCascadeStepMs: positiveInteger('TIER_CASCADE_STEP_MS', 300000),
+    autoVerifyGpsProof: process.env.AUTO_VERIFY_GPS_PROOF !== 'false',
 });

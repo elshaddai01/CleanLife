@@ -1,15 +1,33 @@
-// Real HTTP client for cleanlife-backend, adapted for React Native.
-// Two real platform differences from the web version (src/apiClient.ts in
-// the web frontend project):
-// 1. AsyncStorage is ASYNC (unlike web localStorage), so every function
-//    that needs the token must await it — this file's request() does that.
-// 2. On an Android emulator, "localhost" refers to the emulator itself, not
-//    your PC — you must use 10.0.2.2 to reach a server running on your host
-//    machine. That's why the default below is 10.0.2.2, not localhost.
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { NativeModules, Platform } from 'react-native';
 import type { PickupStatus, WasteType, VehicleType } from './types';
 
-export const API_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.0.2.2:3000').replace(/\/$/, '');
+function getApiBaseUrl() {
+  const configuredUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+  const apiPort = process.env.EXPO_PUBLIC_API_PORT?.trim() || '3001';
+
+  // In Expo Go/development, the JS bundle is served by Metro on the same
+  // computer as the API. Reading that URL gives us the correct LAN address
+  // even when Wi-Fi/hotspot networks change.
+  if (__DEV__) {
+    const scriptUrl = NativeModules.SourceCode?.scriptURL as string | undefined;
+    if (scriptUrl) {
+      try {
+        const metroHost = new URL(scriptUrl).hostname;
+        const isLoopback = metroHost === 'localhost' || metroHost === '127.0.0.1' || metroHost === '::1';
+        if (metroHost && !isLoopback) return `http://${metroHost}:${apiPort}`;
+      } catch {
+        // Fall through to an explicit URL or platform-local development host.
+      }
+    }
+  }
+
+  if (configuredUrl) return configuredUrl.replace(/\/$/, '');
+  return Platform.OS === 'android' ? `http://10.0.2.2:${apiPort}` : `http://localhost:${apiPort}`;
+}
+
+export const API_BASE = getApiBaseUrl();
 const TOKEN_KEY = 'cleanlife_auth_token';
 const ROLE_KEY = 'cleanlife_auth_role';
 const USER_ID_KEY = 'cleanlife_auth_user_id';
@@ -34,9 +52,7 @@ export async function setSession(token: string, role: 'client' | 'collector', us
 }
 
 export async function clearSession() {
-  await AsyncStorage.removeItem(TOKEN_KEY);
-  await AsyncStorage.removeItem(ROLE_KEY);
-  await AsyncStorage.removeItem(USER_ID_KEY);
+  await AsyncStorage.multiRemove([TOKEN_KEY, ROLE_KEY, USER_ID_KEY]);
 }
 
 export class ApiError extends Error {
@@ -288,6 +304,15 @@ export const telemetryApi = {
     return request<{ id: number; current_area_id: string; last_heartbeat_at: string }>('/telemetry/heartbeat', {
       method: 'POST',
       body: JSON.stringify({ area_id }),
+    });
+  },
+};
+
+export const uploadApi = {
+  uploadProofSnapshot(base64: string, mime_type: 'image/jpeg' | 'image/png') {
+    return request<{ url: string }>('/uploads/proof', {
+      method: 'POST',
+      body: JSON.stringify({ base64, mime_type }),
     });
   },
 };

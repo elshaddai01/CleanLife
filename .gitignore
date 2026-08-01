@@ -2,9 +2,11 @@ node_modules/
 .expo/
 .env 
 .env.local 
+.env*.local
 .env.*.local 
 dist/ 
 build/ 
+cleanlife-backend/uploads/
 .DS_Store 
 Thumbs.db 
 *.log 

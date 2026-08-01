@@ -1,4 +1,5 @@
 const { pool } = require('../db/pool');
+const config = require('../config/env');
 
 const GEOFENCE_RADIUS_METERS = 100;
 
@@ -31,6 +32,12 @@ async function findDumpsterByBinCode(binCode) {
 
 // Returns { isVerified, verificationMethod, dumpsterId }
 async function verifyDisposal({ exifLatitude, exifLongitude, binCode }) {
+    // Temporary operational mode: a camera snapshot plus valid GPS is enough
+    // until administrators can register authorized dumpster locations.
+    if (config.autoVerifyGpsProof && exifLatitude != null && exifLongitude != null) {
+        return { isVerified: true, verificationMethod: 'gps', dumpsterId: null };
+    }
+
     if (binCode) {
         const dumpster = await findDumpsterByBinCode(binCode);
         if (dumpster) {

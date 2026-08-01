@@ -85,7 +85,7 @@ router.post('/momo/webhook', async (req, res) => {
 // [POW-06] Proof-of-work submission — the ONLY action that completes a
 // request and releases escrow (SRS 3.4), regardless of payment method.
 // Body: { photo_storage_url, exif_latitude?, exif_longitude?, bin_code? }
-// Either bin_code OR both exif_latitude/exif_longitude must be given.
+// A freshly captured snapshot URL and both GPS coordinates are required.
 router.post('/:id/proof-of-work', requireAuth, requireRole('collector'), async (req, res) => {
     const requestId = positiveInteger(req.params.id);
     if (!requestId) return res.status(400).json({ error: 'invalid pickup request id' });
@@ -94,8 +94,16 @@ router.post('/:id/proof-of-work', requireAuth, requireRole('collector'), async (
     if (!photo_storage_url) {
         return res.status(400).json({ error: 'photo_storage_url is required' });
     }
-    if (!bin_code && (exif_latitude == null || exif_longitude == null)) {
-        return res.status(400).json({ error: 'either bin_code or both exif_latitude and exif_longitude are required' });
+    try {
+        const photoUrl = new URL(photo_storage_url);
+        if (!photoUrl.pathname.startsWith('/uploads/proofs/')) {
+            return res.status(400).json({ error: 'proof must use a snapshot uploaded through the CleanLife camera flow' });
+        }
+    } catch {
+        return res.status(400).json({ error: 'invalid proof snapshot URL' });
+    }
+    if (exif_latitude == null || exif_longitude == null) {
+        return res.status(400).json({ error: 'both exif_latitude and exif_longitude are required' });
     }
     if (exif_latitude != null && finiteNumber(exif_latitude, { min: -90, max: 90 }) === null) {
         return res.status(400).json({ error: 'exif_latitude must be between -90 and 90' });
