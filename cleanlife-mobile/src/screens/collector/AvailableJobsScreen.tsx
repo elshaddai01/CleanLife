@@ -41,6 +41,11 @@ export default function AvailableJobsScreen({ onBack, onJobClaimed, onSessionExp
 
   useEffect(() => {
     load();
+    // [DISP-06] No push notifications yet — poll so Premium collectors
+    // actually see rank-1 jobs close to instantly instead of only on
+    // manual pull-to-refresh. Lower this for tighter cascade testing.
+    const timer = setInterval(load, 5000);
+    return () => clearInterval(timer);
   }, [load]);
 
   const onRefresh = () => {

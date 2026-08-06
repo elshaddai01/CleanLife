@@ -113,7 +113,7 @@ router.post('/:id/proof-of-work', requireAuth, requireRole('collector'), async (
     }
 
     try {
-        const { isVerified, verificationMethod, dumpsterId } = await verifyDisposal({
+        const { isVerified, verificationMethod, dumpsterId, nearestDistanceMeters } = await verifyDisposal({
             exifLatitude: exif_latitude,
             exifLongitude: exif_longitude,
             binCode: bin_code,
@@ -132,7 +132,8 @@ router.post('/:id/proof-of-work', requireAuth, requireRole('collector'), async (
             return res.status(422).json({
                 error: bin_code
                     ? 'bin_code not recognized'
-                    : `disposal photo location is not within the required ${100}m of an authorized dumpster`,
+                    : `disposal photo location is not within the required 100m of an authorized dumpster` +
+                      (nearestDistanceMeters != null ? ` (nearest is ${Math.round(nearestDistanceMeters)}m away)` : ''),
                 proof_of_work: inserted.rows[0],
             });
         }

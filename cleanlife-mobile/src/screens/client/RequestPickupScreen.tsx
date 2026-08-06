@@ -15,6 +15,10 @@ import type { WasteType } from '../../types';
 
 const WASTE_TYPES: WasteType[] = ['Organic', 'Recyclable', 'Hazardous', 'Heavy Debris'];
 
+// [PRICE-01] Mirrors backend flat rate (see pickupRequests.js). Client-side
+// estimate only — server computes and stores the authoritative price.
+const PRICE_PER_BAG_FCFA = 500;
+
 type Props = {
   onBack: () => void;
   onCreated: (requestId: number) => void;
@@ -28,6 +32,10 @@ export default function RequestPickupScreen({ onBack, onCreated }: Props) {
   const [lng, setLng] = useState<number | null>(null);
   const [locating, setLocating] = useState(false);
   const [creating, setCreating] = useState(false);
+
+  const parsedBagCount = Number(bagCount);
+  const isValidBagCount = Number.isInteger(parsedBagCount) && parsedBagCount > 0;
+  const estimatedPriceFcfa = isValidBagCount ? parsedBagCount * PRICE_PER_BAG_FCFA : null;
 
   const handleUseCurrentLocation = async () => {
     setLocating(true);
@@ -98,6 +106,11 @@ export default function RequestPickupScreen({ onBack, onCreated }: Props) {
         onChangeText={setBagCount}
         keyboardType="number-pad"
       />
+      <Text style={styles.estimateText}>
+        {isValidBagCount
+          ? `Estimated price: ${estimatedPriceFcfa} FCFA (${PRICE_PER_BAG_FCFA} FCFA/bag)`
+          : 'Enter a valid bag count to see the estimated price'}
+      </Text>
 
       <Text style={styles.label}>Waste type</Text>
       <View style={styles.pillRow}>
@@ -158,6 +171,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
+  estimateText: { fontSize: 12, color: '#059669', fontWeight: '700', marginTop: 6 },
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pill: { borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: '#fff' },
   pillActive: { backgroundColor: '#059669', borderColor: '#059669' },

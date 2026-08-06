@@ -56,4 +56,34 @@ router.post('/dumpsters', async (req, res) => {
     }
 });
 
+// [DISP-05] Change a collector's subscription_tier directly. Tier controls
+// how fast that collector sees a broadcast request: Premium = instant
+// (stage rank 1), Gold = after TIER_CASCADE_STEP_MS, Silver = after
+// 2x TIER_CASCADE_STEP_MS (see dispatchWorker.js). Bump someone to Premium
+// to have them notified as soon as possible.
+// Body: { subscription_tier }
+router.patch('/collectors/:id/tier', async (req, res) => {
+    const collectorId = Number(req.params.id);
+    if (!Number.isSafeInteger(collectorId) || collectorId <= 0) {
+        return res.status(400).json({ error: 'invalid collector id' });
+    }
+    const { subscription_tier } = req.body;
+    if (!['Premium', 'Gold', 'Silver'].includes(subscription_tier)) {
+        return res.status(400).json({ error: 'subscription_tier must be Premium, Gold, or Silver' });
+    }
+    try {
+        const result = await pool.query(
+            `UPDATE collectors SET subscription_tier = $1 WHERE id = $2
+             RETURNING id, username, collector_type, company_id, subscription_tier`,
+            [subscription_tier, collectorId]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'collector not found' });
+        }
+        return res.json(result.rows[0]);
+    } catch (error) {
+        return handleDbError(error, res, 'collector tier update');
+    }
+});
+
 module.exports = router;
